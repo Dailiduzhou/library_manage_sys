@@ -4,3 +4,6 @@
 
 
 ## `.env`放进`.gitigore`了
+## 数据库使用
+使用`Redis`存储`session`
+使用`MySQL`存储用户和借书信息

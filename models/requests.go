@@ -34,13 +34,3 @@ type UpdateBookRequest struct {
 type FindBookRequest struct {
 	ID uint `json:"id" binding:"required"`
 }
-
-type BorrowRequest struct {
-	UserID uint `json:"user_id" binding:"required"`
-	BookID uint `json:"book_id" binding:"required"`
-}
-
-type ReturnRequest struct {
-	UserID uint `json:"user_id" binding:"required"`
-	BookID uint `json:"book_id" binding:"required"`
-}

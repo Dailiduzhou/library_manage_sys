@@ -3,8 +3,10 @@ package middleware
 import (
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 
+	controller "github.com/Dailiduzhou/library_manage_sys/controllers"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-contrib/sessions/redis"
@@ -83,4 +85,50 @@ func initCookieStore(sessionSecret []byte) sessions.Store {
 	log.Println("使用 Cookie 存储（开发环境）")
 	store := cookie.NewStore(sessionSecret)
 	return store
+}
+
+func AuthRequired() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		session := sessions.Default(c)
+		userID := session.Get("user_id")
+
+		// 前端最好实现跳转登录页面的功能
+		if userID == nil {
+			c.JSON(http.StatusUnauthorized, controller.Response{
+				Code: 401,
+				Msg:  "请先登录",
+			})
+			c.Abort()
+			return
+		}
+
+		c.Set("user_id", userID)
+
+		c.Next()
+	}
+}
+
+func AdminRequired() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		session := sessions.Default(c)
+		role := session.Get("role")
+
+		if roleStr, ok := role.(string); !ok {
+			c.JSON(http.StatusInternalServerError, controller.Response{
+				Code: 500,
+				Msg:  "处理用户身份错误",
+			})
+			c.Abort()
+			return
+		} else if roleStr != "admin" {
+			c.JSON(http.StatusUnauthorized, controller.Response{
+				Code: 401,
+				Msg:  "权限不足",
+			})
+			c.Abort()
+			return
+		}
+
+		c.Next()
+	}
 }

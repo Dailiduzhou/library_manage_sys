@@ -18,6 +18,8 @@ var (
 	ErrBookNotFound   = errors.New("图书不存在")
 	ErrNoStock        = errors.New("图书库存不足")
 	ErrRecordNotFound = errors.New("借书记录查询失败")
+	ErrBookBorrowed   = errors.New("图书仍在借")
+	ErrDeleteBook     = errors.New("图书删除失败")
 )
 
 type Response struct {
@@ -145,6 +147,23 @@ func Login(c *gin.Context) {
 	})
 }
 
+func Logout(c *gin.Context) {
+	session := sessions.Default(c)
+	session.Clear()
+	if err := session.Save(); err != nil {
+		c.JSON(http.StatusInternalServerError, Response{
+			Code: 500,
+			Msg:  "登出失败",
+		})
+	}
+
+	// 希望前端实现跳转登录界面的功能
+	c.JSON(http.StatusOK, Response{
+		Code: 200,
+		Msg:  "登出成功",
+	})
+}
+
 func CreateBook(c *gin.Context) {
 	var req models.CreateBookRequest
 
@@ -225,6 +244,7 @@ func GetBooks(c *gin.Context) {
 
 	title := c.Query("title")
 	author := c.Query("author")
+	summary := c.Query("summary")
 
 	query := config.DB.Model(&models.Book{})
 
@@ -233,6 +253,9 @@ func GetBooks(c *gin.Context) {
 	}
 	if author != "" {
 		query = query.Where("author LIKE ?", "%"+author+"%")
+	}
+	if summary != "" {
+		query = query.Where("summary LIKE ?", "%"+summary+"%")
 	}
 
 	if err := query.Order("id desc").Find(&books).Error; err != nil {
@@ -377,34 +400,46 @@ func DeleteBooks(c *gin.Context) {
 		return
 	}
 
-	var existingBook models.Book
-	err := config.DB.Where("id = ?", req.ID).First(&existingBook).Error
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		c.JSON(http.StatusNotFound, Response{
-			Code: 404,
-			Msg:  "图书不存在",
-		})
-	}
+	err := config.DB.Transaction(func(tx *gorm.DB) error {
+		var existingBook models.Book
+
+		if err := tx.First(&existingBook, req.ID).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return ErrBookNotFound
+			}
+			return err
+		}
+
+		if existingBook.Stock != existingBook.TotalStock {
+			return ErrBookBorrowed
+		}
+
+		if err := tx.Delete(&existingBook).Error; err != nil {
+			return ErrDeleteBook
+		}
+
+		return nil
+	})
+
 	if err != nil {
+		if errors.Is(err, ErrBookNotFound) {
+			c.JSON(http.StatusNotFound, Response{
+				Code: 404,
+				Msg:  "图书不存在",
+			})
+			return
+		}
+		if errors.Is(err, ErrDeleteBook) {
+			c.JSON(http.StatusInternalServerError, Response{
+				Code: 500,
+				Msg:  "删除图书失败",
+			})
+			return
+		}
+
 		c.JSON(http.StatusInternalServerError, Response{
 			Code: 500,
-			Msg:  "数据库查询失败",
-		})
-		return
-	}
-
-	if existingBook.Stock != existingBook.TotalStock {
-		c.JSON(http.StatusConflict, Response{
-			Code: 409,
-			Msg:  "仍有图书在借,无法删除",
-		})
-		return
-	}
-
-	if err := config.DB.Where("id = ?").Delete(&models.Book{}).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, Response{
-			Code: 500,
-			Msg:  "删除图书失败",
+			Msg:  "系统繁忙,请稍后再试",
 		})
 		return
 	}
@@ -416,7 +451,8 @@ func DeleteBooks(c *gin.Context) {
 }
 
 func BorrowBook(c *gin.Context) {
-	var req models.BorrowRequest
+	var req models.FindBookRequest
+	userID := c.GetUint("user_id")
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, Response{
 			Code: 400,
@@ -444,8 +480,8 @@ func BorrowBook(c *gin.Context) {
 		}
 
 		borrowRecord = models.BorrowRecord{
-			UserID:     req.UserID,
-			BookID:     req.BookID,
+			UserID:     userID,
+			BookID:     req.ID,
 			BorrowDate: time.Now(),
 			Status:     "borrowed",
 		}
@@ -488,7 +524,7 @@ func BorrowBook(c *gin.Context) {
 }
 
 func ReturnBook(c *gin.Context) {
-	var req models.ReturnRequest
+	var req models.FindBookRequest
 
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, Response{
@@ -501,8 +537,7 @@ func ReturnBook(c *gin.Context) {
 	var borrowRecord models.BorrowRecord
 	err := config.DB.Transaction(func(tx *gorm.DB) error {
 		var book models.Book
-
-		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&book).Error; err != nil {
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&book, req.ID).Error; err != nil {
 			if errors.Is(err, ErrBookNotFound) {
 				return ErrBookNotFound
 			}
