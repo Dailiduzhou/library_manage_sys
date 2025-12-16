@@ -1,1 +1,26 @@
 .env
+*.pem        
+*.key
+*.crt
+
+backend/library_server  # Go 编译后的 Linux 可执行文件
+*.exe                   # Windows 可执行文件
+*.dll
+*.so
+*.dylib
+
+backend/uploads/* 
+!backend/uploads/.keep
+
+mysql_data/
+redis_data/
+
+.DS_Store           # Mac 系统垃圾文件
+Thumbs.db           # Windows 系统垃圾文件
+.idea/            
+.vscode/
+
+# --- 6. 前端 (为未来准备) ---
+frontend/node_modules/
+frontend/dist/
+frontend/.nuxt/

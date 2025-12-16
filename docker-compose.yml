@@ -1,28 +1,48 @@
 version: '3.8'
 
 services:
-  # 1. 你的 Go 应用程序
-  app:
-    build: .
-    container_name: library_app
+  # 1. Nginx 反向代理 (新增)
+  nginx:
+    image: nginx:alpine
+    container_name: library_nginx
+    restart: always
     ports:
-      - "8080:8080" # 宿主机端口:容器端口
+      - "80:80"   # HTTP
+      - "443:443" # HTTPS
+    volumes:
+      # 挂载配置文件
+      - ./nginx/conf.d:/etc/nginx/conf.d
+      # 挂载证书
+      - ./nginx/ssl:/etc/nginx/ssl
+      # 挂载上传文件夹 (为了让 Nginx 直接服务静态图片，性能更高)
+      - ./backend/uploads:/usr/share/nginx/html/uploads
+    depends_on:
+      - app
+    networks:
+      - app_net
+
+  # 2. 你的 Go 应用程序
+  app:
+    build: ./backend
+    container_name: library_app
+    restart: always
+    # ports:
     depends_on:
       - db
       - redis
     volumes:
-      - ./uploads:/app/uploads # 挂载上传目录，保证重启后封面不丢失
+      - ./backend/uploads:/root/uploads
     environment:
-      # 这里覆盖 .env 中的配置，使用容器服务名
       - DB_HOST=db
       - DB_PORT=3306 
       - REDIS_HOST=redis
       - REDIS_PORT=6379
-      # 其他配置仍读取 .env 文件
     env_file:
       - .env
+    networks:
+      - app_net
 
-  # 2. MySQL 数据库
+  # 3. MySQL 数据库
   db:
     image: mysql:8.0
     container_name: library_mysql
@@ -31,12 +51,14 @@ services:
       MYSQL_ROOT_PASSWORD: 123456
       MYSQL_DATABASE: books
     ports:
-      - "3307:3306" # 宿主机 3307 -> 容器 3306
+      - "3307:3306"
     volumes:
-      - mysql_data:/var/lib/mysql # 数据持久化
-    command: --default-authentication-plugin=mysql_native_password # 兼容旧版客户端
+      - mysql_data:/var/lib/mysql
+    command: --default-authentication-plugin=mysql_native_password
+    networks:
+      - app_net
 
-  # 3. Redis 缓存
+  # 4. Redis 缓存
   redis:
     image: redis:alpine
     container_name: library_redis
@@ -45,8 +67,14 @@ services:
       - "6379:6379"
     volumes:
       - redis_data:/data
+    networks:
+      - app_net
 
-# 定义数据卷
+# 定义网络 (让所有容器互通)
+networks:
+  app_net:
+    driver: bridge
+
 volumes:
   mysql_data:
   redis_data:
