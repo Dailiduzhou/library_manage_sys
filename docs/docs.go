@@ -75,37 +75,6 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/auth/logout": {
-            "post": {
-                "security": [
-                    {
-                        "ApiKeyAuth": []
-                    }
-                ],
-                "description": "清除会话",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "auth"
-                ],
-                "summary": "用户登出",
-                "responses": {
-                    "200": {
-                        "description": "登出成功",
-                        "schema": {
-                            "$ref": "#/definitions/models.Response"
-                        }
-                    },
-                    "500": {
-                        "description": "服务器错误",
-                        "schema": {
-                            "$ref": "#/definitions/models.Response"
-                        }
-                    }
-                }
-            }
-        },
         "/api/auth/register": {
             "post": {
                 "description": "创建新用户账号",
@@ -620,6 +589,37 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/api/logout": {
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "清除会话",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "用户登出",
+                "responses": {
+                    "200": {
+                        "description": "登出成功",
+                        "schema": {
+                            "$ref": "#/definitions/models.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "服务器错误",
+                        "schema": {
+                            "$ref": "#/definitions/models.Response"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -778,8 +778,8 @@ var SwaggerInfo = &swag.Spec{
 	Description:      "This is a library management system API",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
-	//LeftDelim:        "{{",
-	//RightDelim:       "}}",
+	// LeftDelim:        "{{",
+	// RightDelim:       "}}",
 }
 
 func init() {

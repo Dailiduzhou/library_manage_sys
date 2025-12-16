@@ -69,37 +69,6 @@
                 }
             }
         },
-        "/api/auth/logout": {
-            "post": {
-                "security": [
-                    {
-                        "ApiKeyAuth": []
-                    }
-                ],
-                "description": "清除会话",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "auth"
-                ],
-                "summary": "用户登出",
-                "responses": {
-                    "200": {
-                        "description": "登出成功",
-                        "schema": {
-                            "$ref": "#/definitions/models.Response"
-                        }
-                    },
-                    "500": {
-                        "description": "服务器错误",
-                        "schema": {
-                            "$ref": "#/definitions/models.Response"
-                        }
-                    }
-                }
-            }
-        },
         "/api/auth/register": {
             "post": {
                 "description": "创建新用户账号",
@@ -602,6 +571,37 @@
                     },
                     "404": {
                         "description": "记录不存在",
+                        "schema": {
+                            "$ref": "#/definitions/models.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "服务器错误",
+                        "schema": {
+                            "$ref": "#/definitions/models.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/logout": {
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "清除会话",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "用户登出",
+                "responses": {
+                    "200": {
+                        "description": "登出成功",
                         "schema": {
                             "$ref": "#/definitions/models.Response"
                         }

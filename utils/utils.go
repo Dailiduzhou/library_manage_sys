@@ -50,8 +50,10 @@ func SaveImages(c *gin.Context, file *multipart.FileHeader) (string, error) {
 	return filepath.ToSlash(dst), nil
 }
 
-func RemoveFile(filePath string) {
+func RemoveFile(filePath string) error {
 	if filePath != "" {
-		os.Remove(filePath)
+		err := os.Remove(filePath)
+		return err
 	}
+	return nil
 }

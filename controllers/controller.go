@@ -2,6 +2,7 @@ package controller
 
 import (
 	"errors"
+	"log"
 	"net/http"
 	"strconv"
 	"time"
@@ -21,6 +22,7 @@ var (
 	ErrRecordNotFound = errors.New("借书记录查询失败")
 	ErrBookBorrowed   = errors.New("图书仍在借")
 	ErrDeleteBook     = errors.New("图书删除失败")
+	ErrDeleteCover    = errors.New("封面删除失败")
 )
 
 // @Summary 用户注册
@@ -119,17 +121,17 @@ func Login(c *gin.Context) {
 
 	var user models.User
 	err = config.DB.Where("username = ?", req.Username).First(&user).Error
-	if !errors.Is(err, gorm.ErrRecordNotFound) {
-		c.JSON(http.StatusInternalServerError, models.Response{
-			Code: 500,
-			Msg:  "查询数据库失败",
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		c.JSON(http.StatusForbidden, models.Response{
+			Code: 403,
+			Msg:  "用户不存在",
 		})
 		return
 	}
 	if err != nil {
-		c.JSON(http.StatusForbidden, models.Response{
-			Code: 403,
-			Msg:  "用户不存在",
+		c.JSON(http.StatusInternalServerError, models.Response{
+			Code: 500,
+			Msg:  "查询数据库失败",
 		})
 		return
 	}
@@ -171,7 +173,7 @@ func Login(c *gin.Context) {
 // @Produce json
 // @Success 200 {object} models.Response "登出成功"
 // @Failure 500 {object} models.Response "服务器错误"
-// @Router /api/auth/logout [post]
+// @Router /api/logout [post]
 func Logout(c *gin.Context) {
 	session := sessions.Default(c)
 	session.Clear()
@@ -234,7 +236,8 @@ func CreateBook(c *gin.Context) {
 	}
 
 	finalCoverPath := config.DefaultCoverPath
-	if req.Cover != nil {
+	if req.Cover != nil && req.Cover.Size > 0 {
+		log.Printf("有封面文件上传，大小: %d", req.Cover.Size)
 		savePath, err := utils.SaveImages(c, req.Cover)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, models.Response{
@@ -244,8 +247,9 @@ func CreateBook(c *gin.Context) {
 			return
 		}
 		finalCoverPath = savePath
+	} else {
+		log.Printf("没有封面文件上传或文件为空，使用默认路径: %s", finalCoverPath)
 	}
-
 	finalSummary := config.DefaultSummary
 	if req.Summary != "" {
 		finalSummary = req.Summary
@@ -262,8 +266,14 @@ func CreateBook(c *gin.Context) {
 	}
 
 	if err := config.DB.Create(&newBook).Error; err != nil {
-		if req.Cover != nil {
-			utils.RemoveFile(finalCoverPath)
+		if req.Cover != nil && req.Cover.Size != 0 {
+			if err := utils.RemoveFile(finalCoverPath); err != nil {
+				c.JSON(http.StatusInternalServerError, models.Response{
+					Code: 500,
+					Msg:  "删除封面失败",
+				})
+				return
+			}
 		}
 
 		c.JSON(http.StatusInternalServerError, models.Response{
@@ -427,22 +437,23 @@ func UpdateBook(c *gin.Context) {
 		updates["total_stock"] = newTotalStock
 	}
 
-	if req.Cover != nil {
-		coverPath, err := utils.SaveImages(c, req.Cover)
+	finalCoverPath := config.DefaultCoverPath
+	if req.Cover != nil && req.Cover.Size > 0 {
+		log.Printf("有封面文件上传，大小: %d", req.Cover.Size)
+		savePath, err := utils.SaveImages(c, req.Cover)
 		if err != nil {
-			tx.Rollback()
 			c.JSON(http.StatusInternalServerError, models.Response{
 				Code: 500,
-				Msg:  "封面图片保存失败",
+				Msg:  "图片保存失败",
 			})
 			return
 		}
-		if book.CoverPath != "" {
-			utils.RemoveFile(book.CoverPath)
-		}
-
-		updates["cover_path"] = coverPath
+		finalCoverPath = savePath
+	} else {
+		log.Printf("没有封面文件上传或文件为空，使用默认路径: %s", finalCoverPath)
 	}
+
+	updates["cover_path"] = finalCoverPath
 
 	if len(updates) > 0 {
 		if err := tx.Model(&book).Updates(updates).Error; err != nil {
@@ -514,6 +525,10 @@ func DeleteBooks(c *gin.Context) {
 			return ErrDeleteBook
 		}
 
+		if err := utils.RemoveFile(existingBook.CoverPath); err != nil {
+			return ErrDeleteCover
+		}
+
 		return nil
 	})
 
@@ -532,6 +547,13 @@ func DeleteBooks(c *gin.Context) {
 			})
 			return
 		}
+		if errors.Is(err, ErrDeleteCover) {
+			c.JSON(http.StatusInternalServerError, models.Response{
+				Code: 500,
+				Msg:  "封面删除失败",
+			})
+			return
+		}
 
 		c.JSON(http.StatusInternalServerError, models.Response{
 			Code: 500,
@@ -547,7 +569,7 @@ func DeleteBooks(c *gin.Context) {
 }
 
 // @Summary 借阅图书
-// @Description 创建借阅记录
+// @Description 创建借阅记录 (return_date 初始为 null)
 // @Tags borrows
 // @Security ApiKeyAuth
 // @Accept json
@@ -558,6 +580,7 @@ func DeleteBooks(c *gin.Context) {
 // @Failure 404 {object} models.Response "图书不存在"
 // @Failure 409 {object} models.Response "库存不足"
 // @Failure 500 {object} models.Response "服务器错误"
+// @Failure 500 {object} models.Response "封面删除失败"
 // @Router /api/borrows [post]
 func BorrowBook(c *gin.Context) {
 	var req models.FindBookRequest
@@ -567,6 +590,7 @@ func BorrowBook(c *gin.Context) {
 			Code: 400,
 			Msg:  "参数设定失败",
 		})
+		return
 	}
 
 	var borrowRecord models.BorrowRecord
@@ -592,6 +616,7 @@ func BorrowBook(c *gin.Context) {
 			UserID:     userID,
 			BookID:     req.ID,
 			BorrowDate: time.Now(),
+			ReturnDate: nil,
 			Status:     "borrowed",
 		}
 
@@ -643,10 +668,11 @@ func BorrowBook(c *gin.Context) {
 // @Failure 400 {object} models.Response "参数错误"
 // @Failure 404 {object} models.Response "记录不存在"
 // @Failure 500 {object} models.Response "服务器错误"
+// @Failure 500 {object} models.Response "封面删除失败"
 // @Router /api/borrows/return [post]
 func ReturnBook(c *gin.Context) {
 	var req models.FindBookRequest
-
+	userID := c.GetUint("user_id")
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, models.Response{
 			Code: 400,
@@ -673,12 +699,13 @@ func ReturnBook(c *gin.Context) {
 			return err
 		}
 
-		if err := tx.Where("user_id = ? AND book_id = ?").First(&borrowRecord).Error; err != nil {
+		if err := tx.Where("user_id = ? AND book_id = ? AND status = ?", userID, req.ID, "borrowed").First(&borrowRecord).Error; err != nil {
 			return ErrRecordNotFound
 		}
 
+		now := time.Now()
 		if err := tx.Model(&borrowRecord).Updates(models.BorrowRecord{
-			ReturnDate: time.Now(),
+			ReturnDate: &now,
 			Status:     "returned"}).Error; err != nil {
 			return err
 		}

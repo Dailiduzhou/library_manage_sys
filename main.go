@@ -53,6 +53,7 @@ func main() {
 	}
 
 	r.Use(cors.New(corsConfig))
+	r.Static("/uploads", "./uploads")
 
 	r.Use(gin.Logger())
 	r.Use(gin.Recovery())

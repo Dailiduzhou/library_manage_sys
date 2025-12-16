@@ -141,25 +141,6 @@ paths:
       summary: 用户登录
       tags:
       - auth
-  /api/auth/logout:
-    post:
-      description: 清除会话
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: 登出成功
-          schema:
-            $ref: '#/definitions/models.Response'
-        "500":
-          description: 服务器错误
-          schema:
-            $ref: '#/definitions/models.Response'
-      security:
-      - ApiKeyAuth: []
-      summary: 用户登出
-      tags:
-      - auth
   /api/auth/register:
     post:
       consumes:
@@ -479,6 +460,25 @@ paths:
       summary: 归还图书
       tags:
       - borrows
+  /api/logout:
+    post:
+      description: 清除会话
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 登出成功
+          schema:
+            $ref: '#/definitions/models.Response'
+        "500":
+          description: 服务器错误
+          schema:
+            $ref: '#/definitions/models.Response'
+      security:
+      - ApiKeyAuth: []
+      summary: 用户登出
+      tags:
+      - auth
 securityDefinitions:
   ApiKeyAuth:
     in: header

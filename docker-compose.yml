@@ -1,0 +1,52 @@
+version: '3.8'
+
+services:
+  # 1. 你的 Go 应用程序
+  app:
+    build: .
+    container_name: library_app
+    ports:
+      - "8080:8080" # 宿主机端口:容器端口
+    depends_on:
+      - db
+      - redis
+    volumes:
+      - ./uploads:/app/uploads # 挂载上传目录，保证重启后封面不丢失
+    environment:
+      # 这里覆盖 .env 中的配置，使用容器服务名
+      - DB_HOST=db
+      - DB_PORT=3306 
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      # 其他配置仍读取 .env 文件
+    env_file:
+      - .env
+
+  # 2. MySQL 数据库
+  db:
+    image: mysql:8.0
+    container_name: library_mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: 123456
+      MYSQL_DATABASE: books
+    ports:
+      - "3307:3306" # 宿主机 3307 -> 容器 3306
+    volumes:
+      - mysql_data:/var/lib/mysql # 数据持久化
+    command: --default-authentication-plugin=mysql_native_password # 兼容旧版客户端
+
+  # 3. Redis 缓存
+  redis:
+    image: redis:alpine
+    container_name: library_redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+# 定义数据卷
+volumes:
+  mysql_data:
+  redis_data:
