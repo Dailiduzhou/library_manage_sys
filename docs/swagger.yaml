@@ -378,7 +378,7 @@ paths:
     post:
       consumes:
       - application/json
-      description: 创建借阅记录
+      description: 创建借阅记录 (return_date 初始为 null)
       parameters:
       - description: 借阅请求
         in: body
@@ -411,7 +411,7 @@ paths:
           schema:
             $ref: '#/definitions/models.Response'
         "500":
-          description: 服务器错误
+          description: 封面删除失败
           schema:
             $ref: '#/definitions/models.Response'
       security:
@@ -452,7 +452,7 @@ paths:
           schema:
             $ref: '#/definitions/models.Response'
         "500":
-          description: 服务器错误
+          description: 封面删除失败
           schema:
             $ref: '#/definitions/models.Response'
       security:

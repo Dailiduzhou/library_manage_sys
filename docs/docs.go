@@ -453,7 +453,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "创建借阅记录",
+                "description": "创建借阅记录 (return_date 初始为 null)",
                 "consumes": [
                     "application/json"
                 ],
@@ -513,7 +513,7 @@ const docTemplate = `{
                         }
                     },
                     "500": {
-                        "description": "服务器错误",
+                        "description": "封面删除失败",
                         "schema": {
                             "$ref": "#/definitions/models.Response"
                         }
@@ -582,7 +582,7 @@ const docTemplate = `{
                         }
                     },
                     "500": {
-                        "description": "服务器错误",
+                        "description": "封面删除失败",
                         "schema": {
                             "$ref": "#/definitions/models.Response"
                         }
