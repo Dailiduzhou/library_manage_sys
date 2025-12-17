@@ -55,7 +55,7 @@ erDiagram
     Book ||--o{ BorrowRecord : "被借阅 (1对多)"
 ```
 ## API 接口功能全景图 (API Functional Map)
-
+> 鉴权组件为`session`
 ```mermaid
 graph TB
     %% 定义样式类
