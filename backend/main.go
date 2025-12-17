@@ -67,7 +67,7 @@ func main() {
 
 	routes.RegisterRoutes(r)
 
-	log.Println("服务器启动在 http://localhost:8080")
+	log.Println("服务器启动")
 	srv := &http.Server{
 		Addr:    ":8080",
 		Handler: r,
