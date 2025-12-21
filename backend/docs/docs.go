@@ -23,6 +23,119 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/api/admin/records": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "查询所有借阅记录（需管理员权限）",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "records"
+                ],
+                "summary": "查询所有借书记录",
+                "responses": {
+                    "200": {
+                        "description": "查询成功",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/models.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/models.BorrowRecord"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "查询成功,无借书记录",
+                        "schema": {
+                            "$ref": "#/definitions/models.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "数据库查询失败",
+                        "schema": {
+                            "$ref": "#/definitions/models.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/admin/records/{id}": {
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "查询指定用户ID的借阅记录（需管理员权限）",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "records"
+                ],
+                "summary": "按用户ID查询借阅记录",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "用户ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "查询成功",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/models.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/models.BorrowRecord"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "查询成功,无借书记录",
+                        "schema": {
+                            "$ref": "#/definitions/models.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "用户ID解析错误或数据库查询失败",
+                        "schema": {
+                            "$ref": "#/definitions/models.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/api/auth/login": {
             "post": {
                 "description": "用户身份验证",
@@ -62,6 +175,37 @@ const docTemplate = `{
                     },
                     "403": {
                         "description": "认证失败",
+                        "schema": {
+                            "$ref": "#/definitions/models.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "服务器错误",
+                        "schema": {
+                            "$ref": "#/definitions/models.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/auth/logout": {
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "清除会话，登出当前用户",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "用户登出",
+                "responses": {
+                    "200": {
+                        "description": "登出成功",
                         "schema": {
                             "$ref": "#/definitions/models.Response"
                         }
@@ -453,7 +597,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "创建借阅记录 (return_date 初始为 null)",
+                "description": "创建借阅记录，用户借阅指定图书 (return_date 初始为 null)",
                 "consumes": [
                     "application/json"
                 ],
@@ -513,7 +657,7 @@ const docTemplate = `{
                         }
                     },
                     "500": {
-                        "description": "封面删除失败",
+                        "description": "服务器错误",
                         "schema": {
                             "$ref": "#/definitions/models.Response"
                         }
@@ -528,7 +672,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "更新借阅状态",
+                "description": "更新借阅状态，用户归还图书",
                 "consumes": [
                     "application/json"
                 ],
@@ -582,37 +726,6 @@ const docTemplate = `{
                         }
                     },
                     "500": {
-                        "description": "封面删除失败",
-                        "schema": {
-                            "$ref": "#/definitions/models.Response"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/logout": {
-            "post": {
-                "security": [
-                    {
-                        "ApiKeyAuth": []
-                    }
-                ],
-                "description": "清除会话",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "auth"
-                ],
-                "summary": "用户登出",
-                "responses": {
-                    "200": {
-                        "description": "登出成功",
-                        "schema": {
-                            "$ref": "#/definitions/models.Response"
-                        }
-                    },
-                    "500": {
                         "description": "服务器错误",
                         "schema": {
                             "$ref": "#/definitions/models.Response"
@@ -621,19 +734,19 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/record/{id}": {
+        "/api/records/{id}": {
             "post": {
                 "security": [
                     {
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "查询借书记录（需登录）",
+                "description": "查询当前登录用户的借阅记录（需登录）",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "auth"
+                    "borrows"
                 ],
                 "summary": "查询个人借书记录",
                 "parameters": [
@@ -641,7 +754,8 @@ const docTemplate = `{
                         "type": "integer",
                         "description": "用户ID",
                         "name": "id",
-                        "in": "path"
+                        "in": "path",
+                        "required": true
                     }
                 ],
                 "responses": {
@@ -666,6 +780,12 @@ const docTemplate = `{
                             ]
                         }
                     },
+                    "400": {
+                        "description": "权限不足，无法查询他人记录",
+                        "schema": {
+                            "$ref": "#/definitions/models.Response"
+                        }
+                    },
                     "404": {
                         "description": "查询成功,无借书记录",
                         "schema": {
@@ -673,7 +793,7 @@ const docTemplate = `{
                         }
                     },
                     "500": {
-                        "description": "数据库查询失败",
+                        "description": "用户ID解析错误或数据库查询失败",
                         "schema": {
                             "$ref": "#/definitions/models.Response"
                         }

@@ -167,13 +167,13 @@ func Login(c *gin.Context) {
 }
 
 // @Summary 用户登出
-// @Description 清除会话
+// @Description 清除会话，登出当前用户
 // @Tags auth
 // @Security ApiKeyAuth
 // @Produce json
 // @Success 200 {object} models.Response "登出成功"
 // @Failure 500 {object} models.Response "服务器错误"
-// @Router /api/logout [post]
+// @Router /api/auth/logout [post]
 func Logout(c *gin.Context) {
 	session := sessions.Default(c)
 	session.Clear()
@@ -569,7 +569,7 @@ func DeleteBooks(c *gin.Context) {
 }
 
 // @Summary 借阅图书
-// @Description 创建借阅记录 (return_date 初始为 null)
+// @Description 创建借阅记录，用户借阅指定图书 (return_date 初始为 null)
 // @Tags borrows
 // @Security ApiKeyAuth
 // @Accept json
@@ -580,7 +580,6 @@ func DeleteBooks(c *gin.Context) {
 // @Failure 404 {object} models.Response "图书不存在"
 // @Failure 409 {object} models.Response "库存不足"
 // @Failure 500 {object} models.Response "服务器错误"
-// @Failure 500 {object} models.Response "封面删除失败"
 // @Router /api/borrows [post]
 func BorrowBook(c *gin.Context) {
 	var req models.FindBookRequest
@@ -597,8 +596,8 @@ func BorrowBook(c *gin.Context) {
 	err := config.DB.Transaction(func(tx *gorm.DB) error {
 		var book models.Book
 
-		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&book).Error; err != nil {
-			if errors.Is(err, ErrBookNotFound) {
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&book, req.ID).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return ErrBookNotFound
 			}
 			return err
@@ -636,9 +635,9 @@ func BorrowBook(c *gin.Context) {
 			return
 		}
 		if errors.Is(err, ErrNoStock) {
-			c.JSON(http.StatusOK, models.Response{
-				Code: 200,
-				Msg:  "图书无库存",
+			c.JSON(http.StatusConflict, models.Response{
+				Code: 409,
+				Msg:  "图书库存不足",
 			})
 			return
 		}
@@ -658,7 +657,7 @@ func BorrowBook(c *gin.Context) {
 }
 
 // @Summary 归还图书
-// @Description 更新借阅状态
+// @Description 更新借阅状态，用户归还图书
 // @Tags borrows
 // @Security ApiKeyAuth
 // @Accept json
@@ -668,7 +667,6 @@ func BorrowBook(c *gin.Context) {
 // @Failure 400 {object} models.Response "参数错误"
 // @Failure 404 {object} models.Response "记录不存在"
 // @Failure 500 {object} models.Response "服务器错误"
-// @Failure 500 {object} models.Response "封面删除失败"
 // @Router /api/borrows/return [post]
 func ReturnBook(c *gin.Context) {
 	var req models.FindBookRequest
@@ -723,10 +721,11 @@ func ReturnBook(c *gin.Context) {
 		}
 
 		if errors.Is(err, ErrRecordNotFound) {
-			c.JSON(http.StatusFound, models.Response{
-				Code: 302,
+			c.JSON(http.StatusNotFound, models.Response{
+				Code: 404,
 				Msg:  "找不到图书记录",
 			})
+			return
 		}
 
 		c.JSON(http.StatusInternalServerError, models.Response{
@@ -744,17 +743,112 @@ func ReturnBook(c *gin.Context) {
 }
 
 // @Summary 查询个人借书记录
-// @Description 查询借书记录（需登录）
-// @Tags auth
+// @Description 查询当前登录用户的借阅记录（需登录）
+// @Tags borrows
 // @Security ApiKeyAuth
 // @Produce json
-// @Param id path uint ture "用户ID"
+// @Param id path uint true "用户ID"
+// @Success 200 {object} models.Response{data=[]models.BorrowRecord} "查询成功"
+// @Failure 400 {object} models.Response "权限不足，无法查询他人记录"
+// @Failure 404 {object} models.Response "查询成功,无借书记录"
+// @Failure 500 {object} models.Response "用户ID解析错误或数据库查询失败"
+// @Router /api/records/{id} [post]
+func BorrowRecords(c *gin.Context) {
+	id := c.Param("id")
+	userID, err := strconv.ParseUint(id, 10, 32)
+
+	session := sessions.Default(c)
+	userID_session := session.Get("user_id")
+	if userID_session == nil || uint(userID) != userID_session.(uint) {
+		c.JSON(http.StatusBadRequest, models.Response{
+			Code: 400,
+			Msg:  "仅可查询自己的借书记录",
+		})
+		return
+	}
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, models.Response{
+			Code: 500,
+			Msg:  "用户ID解析错误",
+		})
+		return
+	}
+
+	var records []models.BorrowRecord
+	query := config.DB.Model(&models.BorrowRecord{})
+
+	query = config.DB.Where("user_id = ?", userID)
+
+	if err := query.Order("id DESC").Find(&records).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, models.Response{
+			Code: 500,
+			Msg:  "数据库查询失败",
+		})
+		return
+	}
+
+	if len(records) == 0 {
+		c.JSON(http.StatusNotFound, models.Response{
+			Code: 404,
+			Msg:  "查询成功,无借书记录",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, models.Response{
+		Code: 200,
+		Msg:  "查询成功",
+		Data: records,
+	})
+}
+
+// @Summary 查询所有借书记录
+// @Description 查询所有借阅记录（需管理员权限）
+// @Tags records
+// @Security ApiKeyAuth
+// @Produce json
 // @Success 200 {object} models.Response{data=[]models.BorrowRecord} "查询成功"
 // @Failure 404 {object} models.Response "查询成功,无借书记录"
-// @Failure 500 {object} models.Response "用户ID解析错误"
 // @Failure 500 {object} models.Response "数据库查询失败"
-// @Router /api/record/{id} [post]
-func BorrowRecords(c *gin.Context) {
+// @Router /api/admin/records [get]
+func GetAllBorrowRecords(c *gin.Context) {
+	var records []models.BorrowRecord
+	query := config.DB.Model(&models.BorrowRecord{})
+	if err := query.Order("id DESC").Find(&records).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, models.Response{
+			Code: 500,
+			Msg:  "数据库查询失败",
+		})
+		return
+	}
+
+	if len(records) == 0 {
+		c.JSON(http.StatusNotFound, models.Response{
+			Code: 404,
+			Msg:  "查询成功,无借书记录",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, models.Response{
+		Code: 200,
+		Msg:  "查询成功",
+		Data: records,
+	})
+}
+
+// @Summary 按用户ID查询借阅记录
+// @Description 查询指定用户ID的借阅记录（需管理员权限）
+// @Tags records
+// @Security ApiKeyAuth
+// @Produce json
+// @Param id path uint true "用户ID"
+// @Success 200 {object} models.Response{data=[]models.BorrowRecord} "查询成功"
+// @Failure 404 {object} models.Response "查询成功,无借书记录"
+// @Failure 500 {object} models.Response "用户ID解析错误或数据库查询失败"
+// @Router /api/admin/records/{id} [post]
+func BorrowRecordsByID(c *gin.Context) {
 	id := c.Param("id")
 	userID, err := strconv.ParseUint(id, 10, 32)
 	if err != nil {
@@ -770,7 +864,7 @@ func BorrowRecords(c *gin.Context) {
 
 	query = config.DB.Where("user_id = ?", userID)
 
-	if err := query.Order("id desc").Find(&records).Error; err != nil {
+	if err := query.Order("id DESC").Find(&records).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, models.Response{
 			Code: 500,
 			Msg:  "数据库查询失败",

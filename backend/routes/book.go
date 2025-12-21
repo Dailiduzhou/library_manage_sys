@@ -22,7 +22,7 @@ func RegisterBookRouters(r *gin.Engine) {
 
 		authGroup.GET("/books", controller.GetBooks)
 
-		adminGroup := authGroup.Group("/")
+		adminGroup := authGroup.Group("/admin")
 		adminGroup.Use(middleware.AdminRequired())
 		{
 			// POST /books 创建
@@ -31,6 +31,10 @@ func RegisterBookRouters(r *gin.Engine) {
 			adminGroup.PUT("/books/:id", controller.UpdateBook)
 			// DELETE /books/:id 删除
 			adminGroup.DELETE("/books/:id", controller.DeleteBooks)
+
+			adminGroup.GET("/records", controller.GetAllBorrowRecords)
+
+			adminGroup.POST("/records/:id", controller.BorrowRecordsByID)
 		}
 	}
 }
