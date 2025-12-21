@@ -65,7 +65,8 @@ func main() {
 
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
-	routes.RegisterRoutes(r)
+	routes.RegisterUserRoutes(r)
+	routes.RegisterBookRouters(r)
 
 	log.Println("服务器启动")
 	srv := &http.Server{
