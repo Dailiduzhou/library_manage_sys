@@ -13,7 +13,7 @@ func RegisterBookRouters(r *gin.Engine) {
 	authGroup.Use(middleware.AuthRequired())
 	{
 		authGroup.POST("/records/:id", controller.BorrowRecords)
-		borrows := api.Group("/borrows")
+		borrows := authGroup.Group("/borrows")
 		{
 			// 创建借阅记录 (借书)
 			borrows.POST("", controller.BorrowBook)

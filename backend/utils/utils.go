@@ -2,6 +2,7 @@ package utils
 
 import (
 	"fmt"
+	"log"
 	"mime/multipart"
 	"os"
 	"path/filepath"
@@ -52,11 +53,34 @@ func SaveImages(c *gin.Context, file *multipart.FileHeader) (string, error) {
 }
 
 func RemoveFile(filePath string) error {
-	if filePath != "" {
-		if filePath != models.DefaultCoverPath {
-			err := os.Remove(filePath)
-			return err
-		}
+	log.Printf("【调试】尝试删除文件，路径: [%s]", filePath)
+	if filePath == "" {
+		log.Println("【调试】路径为空，跳过")
+		return nil
 	}
+
+	absInputPath, err := filepath.Abs(filePath)
+	if err != nil {
+		return err
+	}
+
+	absDefaultPath, err := filepath.Abs(models.DefaultCoverPath)
+	if err != nil {
+		return err
+	}
+
+	if absInputPath == absDefaultPath {
+		log.Println("【调试】检测到是默认封面，触发保护，跳过删除")
+		return nil
+	}
+
+	log.Printf("【执行】正在删除文件: %s", filePath)
+	err = os.Remove(absInputPath)
+
+	if err != nil && !os.IsNotExist(err) {
+		log.Printf("【错误】删除失败: %v", err)
+		return err
+	}
+
 	return nil
 }

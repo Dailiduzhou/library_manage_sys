@@ -92,7 +92,6 @@ func AuthRequired() gin.HandlerFunc {
 		session := sessions.Default(c)
 		userID := session.Get("user_id")
 
-		// 前端最好实现跳转登录页面的功能
 		if userID == nil {
 			c.JSON(http.StatusUnauthorized, models.Response{
 				Code: 401,
@@ -102,7 +101,28 @@ func AuthRequired() gin.HandlerFunc {
 			return
 		}
 
-		c.Set("user_id", userID)
+		var finalID uint
+
+		switch v := userID.(type) {
+		case uint:
+			finalID = v
+		case int:
+			finalID = uint(v)
+		case float64:
+			finalID = uint(v)
+		case uint64:
+			finalID = uint(v)
+		default:
+
+			c.JSON(http.StatusUnauthorized, models.Response{
+				Code: 401,
+				Msg:  "认证数据异常，请重新登录",
+			})
+			c.Abort()
+			return
+		}
+
+		c.Set("user_id", finalID)
 
 		c.Next()
 	}

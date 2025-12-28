@@ -107,6 +107,167 @@ info:
   title: Library Management System API
   version: "1.0"
 paths:
+  /api/admin/books:
+    post:
+      consumes:
+      - multipart/form-data
+      description: 添加新图书（管理员权限）
+      parameters:
+      - description: 书名
+        in: formData
+        name: title
+        required: true
+        type: string
+      - description: 作者
+        in: formData
+        name: author
+        required: true
+        type: string
+      - description: 简介
+        in: formData
+        name: summary
+        type: string
+      - description: 封面图片
+        in: formData
+        name: cover
+        type: file
+      - description: 初始库存
+        in: formData
+        minimum: 0
+        name: initial_stock
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 创建成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.Book'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/models.Response'
+        "409":
+          description: 图书已存在
+          schema:
+            $ref: '#/definitions/models.Response'
+        "500":
+          description: 服务器错误
+          schema:
+            $ref: '#/definitions/models.Response'
+      security:
+      - ApiKeyAuth: []
+      summary: 创建图书
+      tags:
+      - books
+  /api/admin/books/{id}:
+    delete:
+      description: 删除指定图书（管理员权限）
+      parameters:
+      - description: 图书ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 删除成功
+          schema:
+            $ref: '#/definitions/models.Response'
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/models.Response'
+        "404":
+          description: 图书不存在
+          schema:
+            $ref: '#/definitions/models.Response'
+        "409":
+          description: 图书仍在借阅中
+          schema:
+            $ref: '#/definitions/models.Response'
+        "500":
+          description: 服务器错误
+          schema:
+            $ref: '#/definitions/models.Response'
+      security:
+      - ApiKeyAuth: []
+      summary: 删除图书
+      tags:
+      - books
+    put:
+      consumes:
+      - multipart/form-data
+      description: 修改图书信息（管理员权限）
+      parameters:
+      - description: 图书ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 新书名
+        in: formData
+        name: title
+        type: string
+      - description: 新作者
+        in: formData
+        name: author
+        type: string
+      - description: 新简介
+        in: formData
+        name: summary
+        type: string
+      - description: 新封面
+        in: formData
+        name: cover
+        type: file
+      - description: 当前库存
+        in: formData
+        minimum: 0
+        name: stock
+        type: integer
+      - description: 总库存
+        in: formData
+        minimum: 0
+        name: total_stock
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.Book'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/models.Response'
+        "404":
+          description: 图书不存在
+          schema:
+            $ref: '#/definitions/models.Response'
+        "500":
+          description: 服务器错误
+          schema:
+            $ref: '#/definitions/models.Response'
+      security:
+      - ApiKeyAuth: []
+      summary: 更新图书
+      tags:
+      - books
   /api/admin/records:
     get:
       description: 查询所有借阅记录（需管理员权限）
@@ -297,166 +458,6 @@ paths:
       security:
       - ApiKeyAuth: []
       summary: 获取图书列表
-      tags:
-      - books
-    post:
-      consumes:
-      - multipart/form-data
-      description: 添加新图书（管理员权限）
-      parameters:
-      - description: 书名
-        in: formData
-        name: title
-        required: true
-        type: string
-      - description: 作者
-        in: formData
-        name: author
-        required: true
-        type: string
-      - description: 简介
-        in: formData
-        name: summary
-        type: string
-      - description: 封面图片
-        in: formData
-        name: cover
-        type: file
-      - description: 初始库存
-        in: formData
-        minimum: 0
-        name: initial_stock
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: 创建成功
-          schema:
-            allOf:
-            - $ref: '#/definitions/models.Response'
-            - properties:
-                data:
-                  $ref: '#/definitions/models.Book'
-              type: object
-        "400":
-          description: 参数错误
-          schema:
-            $ref: '#/definitions/models.Response'
-        "409":
-          description: 图书已存在
-          schema:
-            $ref: '#/definitions/models.Response'
-        "500":
-          description: 服务器错误
-          schema:
-            $ref: '#/definitions/models.Response'
-      security:
-      - ApiKeyAuth: []
-      summary: 创建图书
-      tags:
-      - books
-  /api/books/{id}:
-    delete:
-      description: 删除指定图书（管理员权限）
-      parameters:
-      - description: 图书ID
-        in: path
-        name: id
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: 删除成功
-          schema:
-            $ref: '#/definitions/models.Response'
-        "400":
-          description: 参数错误
-          schema:
-            $ref: '#/definitions/models.Response'
-        "404":
-          description: 图书不存在
-          schema:
-            $ref: '#/definitions/models.Response'
-        "409":
-          description: 图书仍在借阅中
-          schema:
-            $ref: '#/definitions/models.Response'
-        "500":
-          description: 服务器错误
-          schema:
-            $ref: '#/definitions/models.Response'
-      security:
-      - ApiKeyAuth: []
-      summary: 删除图书
-      tags:
-      - books
-    put:
-      consumes:
-      - multipart/form-data
-      description: 修改图书信息（管理员权限）
-      parameters:
-      - description: 图书ID
-        in: path
-        name: id
-        required: true
-        type: integer
-      - description: 新书名
-        in: formData
-        name: title
-        type: string
-      - description: 新作者
-        in: formData
-        name: author
-        type: string
-      - description: 新简介
-        in: formData
-        name: summary
-        type: string
-      - description: 新封面
-        in: formData
-        name: cover
-        type: file
-      - description: 当前库存
-        in: formData
-        minimum: 0
-        name: stock
-        type: integer
-      - description: 总库存
-        in: formData
-        minimum: 0
-        name: total_stock
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: 更新成功
-          schema:
-            allOf:
-            - $ref: '#/definitions/models.Response'
-            - properties:
-                data:
-                  $ref: '#/definitions/models.Book'
-              type: object
-        "400":
-          description: 参数错误
-          schema:
-            $ref: '#/definitions/models.Response'
-        "404":
-          description: 图书不存在
-          schema:
-            $ref: '#/definitions/models.Response'
-        "500":
-          description: 服务器错误
-          schema:
-            $ref: '#/definitions/models.Response'
-      security:
-      - ApiKeyAuth: []
-      summary: 更新图书
       tags:
       - books
   /api/borrows:

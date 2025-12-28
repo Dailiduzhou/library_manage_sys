@@ -3,6 +3,8 @@ package models
 // @externalDocs description="GORM Documentation" url="https://gorm.io/docs/"
 import (
 	"time"
+
+	"gorm.io/gorm"
 )
 
 const (
@@ -60,10 +62,10 @@ type User struct {
 // @property status string "状态: borrowed/returned"
 type BorrowRecord struct {
 	// 显式定义 gorm.Model 的字段
-	ID        uint       `gorm:"primaryKey" json:"id"`
-	CreatedAt time.Time  `json:"created_at"`
-	UpdatedAt time.Time  `json:"updated_at"`
-	DeletedAt *time.Time `gorm:"index" json:"deleted_at,omitempty"` // 使用指针类型
+	ID        uint           `gorm:"primaryKey" json:"id"`
+	CreatedAt time.Time      `json:"created_at"`
+	UpdatedAt time.Time      `json:"updated_at"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
 
 	UserID     uint       `json:"user_id"`
 	BookID     uint       `json:"book_id"`
@@ -72,6 +74,6 @@ type BorrowRecord struct {
 	Status     string     `json:"status"` // borrowed/returned
 
 	// 关联关系
-	User User `json:"user,omitempty" swaggerignore:"true"`
-	Book Book `json:"book,omitempty" swaggerignore:"true"`
+	User *User `json:"user,omitempty" swaggerignore:"true"`
+	Book *Book `json:"book,omitempty" swaggerignore:"true"`
 }
